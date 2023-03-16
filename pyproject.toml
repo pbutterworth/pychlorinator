@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pychlorinator"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["pbutterworth <3683210+pbutterworth@users.noreply.github.com>"]
 readme = "README.md"
