@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "pychlorinator"
-version = "0.1.1"
+version = "0.1.2"
 description = ""
 authors = ["pbutterworth <3683210+pbutterworth@users.noreply.github.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.7"
 
 
 [tool.poetry.group.dev.dependencies]
