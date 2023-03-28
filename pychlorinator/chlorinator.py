@@ -13,6 +13,8 @@ from .chlorinator_parsers import (
     ChlorinatorSetup,
     ChlorinatorState,
     ChlorinatorCapabilities,
+    ChlorinatorActions,
+    ChlorinatorAction,
 )
 
 
@@ -50,19 +52,28 @@ def xor_bytes(array1, array2):
     return bytes(array1 ^ array2 for (array1, array2) in zip(shrt, lng))
 
 
-def excrypt_mac_key(session_key: bytes, access_code: bytes) -> bytes:
+def encrypt_mac_key(session_key: bytes, access_code: bytes) -> bytes:
     """encrypt the mac key"""
     xored = xor_bytes(session_key, access_code)
     cipher = AES.new(SECRET_KEY, AES.MODE_ECB)
     return cipher.encrypt(xored)
 
 
+def encrypt_characteristic(data: bytes, session_key: bytes) -> bytes:
+    """encrypt a characteristc packet"""
+    xored = xor_bytes(data, session_key)
+    cipher = AES.new(SECRET_KEY, AES.MODE_ECB)
+    array = cipher.encrypt(xored[:16]) + xored[16:]
+    array = array[:4] + cipher.encrypt(array[4:])
+    return array
+
+
 def decrypt_characteristic(data: bytes, session_key: bytes) -> bytes:
     """decrypt a GATT characteristic"""
     cipher = AES.new(SECRET_KEY, AES.MODE_ECB)
-    array1 = data[:4] + cipher.decrypt(data[4:])
-    array1 = cipher.decrypt(array1[:16]) + array1[16:]
-    xored = xor_bytes(array1, session_key)
+    array = data[:4] + cipher.decrypt(data[4:])
+    array = cipher.decrypt(array[:16]) + array[16:]
+    xored = xor_bytes(array, session_key)
     return xored
 
 
@@ -78,6 +89,32 @@ class ChlorinatorAPI:
         self._access_code = access_code
         self._session_key = None
         self._result: dict[str, Any] = None
+
+    async def async_write_action(self, action: ChlorinatorActions):
+        """Connect to the Chlorinator and write an action command to it"""
+        async with BleakClient(self._ble_device, timeout=3) as client:
+            self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY)
+            _LOGGER.info(f"got session key {self._session_key.hex()}")
+
+            mac = encrypt_mac_key(self._session_key, bytes(self._access_code, "utf_8"))
+            _LOGGER.info(f"mac key to write {mac}")
+            await client.write_gatt_char(UUID_MASTER_AUTHENTICATION, mac)
+
+            # I think we need to read all the following characteristics so that we are 'authenticated'
+            # Otherwise we seem to get kicked out
+            await client.read_gatt_char(UUID_CHLORINATOR_STATE)
+            await client.read_gatt_char(UUID_CHLORINATOR_SETUP)
+            await client.read_gatt_char(UUID_CHLORINATOR_TIMERS)
+            await client.read_gatt_char(UUID_CHLORINATOR_SETTINGS)
+            await client.read_gatt_char(UUID_LIGHTING_STATE)
+            await client.read_gatt_char(UUID_LIGHTING_SETUP)
+            await client.read_gatt_char(UUID_LIGHTING_TIMERS)
+
+            data = ChlorinatorAction(action).__bytes__()
+            _LOGGER.info(f"data to write {data.hex()}")
+            data = encrypt_characteristic(data, self._session_key)
+            _LOGGER.info(f"encrypted data to write {data.hex()}")
+            await client.write_gatt_char(UUID_CHLORINATOR_APP_ACTION, data)
 
     async def async_gatherdata(self) -> dict[str, Any]:
         """Connect to the Chlorinator to get data."""
@@ -98,8 +135,10 @@ class ChlorinatorAPI:
 
         async with BleakClient(self._ble_device, timeout=3) as client:
             self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY)
+            _LOGGER.info(f"got session key {self._session_key.hex()}")
 
-            mac = excrypt_mac_key(self._session_key, bytes(self._access_code, "utf_8"))
+            mac = encrypt_mac_key(self._session_key, bytes(self._access_code, "utf_8"))
+            _LOGGER.info(f"mac key to write {mac.hex()}")
             await client.write_gatt_char(UUID_MASTER_AUTHENTICATION, mac)
 
             for uuid, parser in parsers.items():

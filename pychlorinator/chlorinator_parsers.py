@@ -2,7 +2,24 @@
 
 import datetime
 import struct
-from enum import Enum, IntFlag
+from enum import Enum, IntFlag, IntEnum
+
+
+class ChlorinatorActions(IntEnum):
+    NoAction = 0
+    Off = 1
+    Auto = 2
+    Manual = 3
+    Low = 4
+    Medium = 5
+    High = 6
+    Pool = 7
+    Spa = 8
+    DismissInfoMessage = 9
+    DisableAcidDosingIndefinitely = 10
+    DisableAcidDosingForPeriod = 11
+    ResetStatistics = 12
+    TriggerCellReversal = 13
 
 
 class Modes(Enum):
@@ -154,6 +171,24 @@ class PumpTimer:
         if self.speed_level == SpeedLevels.NotSet:
             return True
         return False
+
+
+class ChlorinatorAction:
+    """Represent an action command"""
+
+    # period_minutes only used for setting ChlorinatorActions:DisableAcidDosingForPeriod
+
+    def __init__(
+        self,
+        action: ChlorinatorActions = ChlorinatorActions.NoAction,
+        period_minutes: int = 0,
+    ) -> None:
+        self.action = action
+        self.period_minutes = period_minutes
+
+    def __bytes__(self):
+        fmt = "=B i 15x"
+        return struct.pack(fmt, self.action, self.period_minutes)
 
 
 class ChlorinatorSetup:
