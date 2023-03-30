@@ -29,6 +29,9 @@ class Modes(Enum):
     ManualOn = 1
     Auto = 2
 
+    def __str__(self):
+        return self.name
+
 
 class SpeedLevels(Enum):
     """Speed levels enum"""
@@ -38,6 +41,9 @@ class SpeedLevels(Enum):
     High = 2
     AI = 3
     NotSet = -1
+
+    def __str__(self):
+        return self.name
 
 
 class InfoMessages(Enum):
@@ -59,6 +65,9 @@ class InfoMessages(Enum):
     Unspecified = 132
     WARNING_LEVEL_IF_EQUAL_OR_GREATER_THAN_THIS_VALUE = 128
 
+    def __str__(self):
+        return self.name
+
 
 class ChlorineControlStatuses(Enum):
     """Chlorine control status enum"""
@@ -73,12 +82,18 @@ class ChlorineControlStatuses(Enum):
     VeryHigh = 6
     VeryVeryHigh = 7
 
+    def __str__(self):
+        return self.name
+
 
 class SetupFlags(IntFlag):
     """Setup flags bit masks"""
 
     NoTimerModel = 1
     TimerMasterIsPresentInSystem = 2
+
+    def __str__(self):
+        return self.name
 
 
 class StateFlags(IntFlag):
@@ -93,6 +108,9 @@ class StateFlags(IntFlag):
     UserSettingsHasChanged = 0x40
     SanitisingUntilNextTimerTomorrow = 0x80
 
+    def __str__(self):
+        return self.name
+
 
 class PhControlTypes(Enum):
     """pH control types enum"""
@@ -100,6 +118,9 @@ class PhControlTypes(Enum):
     NoPhControl = 0
     Manual = 1
     Automatic = 2
+
+    def __str__(self):
+        return self.name
 
 
 class ChlorineControlTypes(Enum):
@@ -109,6 +130,9 @@ class ChlorineControlTypes(Enum):
     Manual = 1
     Automatic = 2
 
+    def __str__(self):
+        return self.name
+
 
 class VolumeUnitsTypes(Enum):
     """Volume units enum"""
@@ -116,6 +140,9 @@ class VolumeUnitsTypes(Enum):
     Litres = 0
     UsGallons = 1
     ImperialGallons = 2
+
+    def __str__(self):
+        return self.name
 
 
 class CapabilitiesFlags(IntFlag):
@@ -137,6 +164,9 @@ class AcidDosingInhibitStatuses(Enum):
     NotInhibited = 0
     InhibitedIndefinitely = 1
     InhibitedForAPeriod = 2
+
+    def __str__(self):
+        return self.name
 
 
 class TimerFlags(IntFlag):
