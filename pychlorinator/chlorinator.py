@@ -92,7 +92,7 @@ class ChlorinatorAPI:
 
     async def async_write_action(self, action: ChlorinatorActions):
         """Connect to the Chlorinator and write an action command to it"""
-        async with BleakClient(self._ble_device, timeout=3) as client:
+        async with BleakClient(self._ble_device, timeout=10) as client:
             self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY)
             _LOGGER.info(f"got session key {self._session_key.hex()}")
 
@@ -133,7 +133,7 @@ class ChlorinatorAPI:
             UUID_CHLORINATOR_SETTINGS: ChlorinatorSettings,
         }
 
-        async with BleakClient(self._ble_device, timeout=3) as client:
+        async with BleakClient(self._ble_device, timeout=10) as client:
             self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY)
             _LOGGER.info(f"got session key {self._session_key.hex()}")
 
