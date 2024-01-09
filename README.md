@@ -4,6 +4,4 @@
 [![PyPI](https://img.shields.io/pypi/v/py3-pyhue?label=pychlorinator&logo=python&logoColor=green&style=for-the-badge)](https://pypi.org/project/pychlorinator/)
 [![PyPi - Downloads](https://img.shields.io/pypi/dm/pychlorinator?label=Downloads&style=for-the-badge)](https://pypi.org/project/pychlorinator)
 
-[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
-[buymecoffee]: https://www.buymeacoffee.com/pbutterworQ
-[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
+<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="pbutterworQ" data-color="#FFDD00" data-emoji=""  data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
