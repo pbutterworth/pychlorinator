@@ -9,7 +9,7 @@ from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from Crypto.Cipher import AES
 
-from .pychlorinator.halo_parsers import (
+from .halo_parsers import (
     CapabilitiesCharacteristic2,
     CellCharacteristic2,
     ChlorinatorAction,
@@ -109,7 +109,7 @@ class HaloChlorinatorAPI:
     async def async_write_action(self, action: ChlorinatorActions):
         """Connect to the Chlorinator and write an action command to it."""
         while self._connected:
-            _LOGGER.info("Already connected, Waiting")
+            _LOGGER.debug("Already connected, Waiting")
             await asyncio.sleep(5)
 
         async with BleakClient(self._ble_device, timeout=10) as client:
@@ -134,7 +134,7 @@ class HaloChlorinatorAPI:
 
         self._result = {}
 
-        _LOGGER.info("Starting halo_ble_client")
+        _LOGGER.debug("Starting halo_ble_client")
         self._connected = True
 
         async def callback_handler(_, data):
@@ -192,7 +192,7 @@ class HaloChlorinatorAPI:
 
         async with BleakClient(self._ble_device, timeout=10) as client:
             self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY_2)
-            _LOGGER.info("Got session key %s", self._session_key.hex())
+            _LOGGER.debug("Got session key %s", self._session_key.hex())
 
             mac = encrypt_mac_key(self._session_key, bytes(self._access_code, "utf_8"))
             # _LOGGER.info("mac key to write %s", mac.hex())
@@ -257,7 +257,7 @@ class HaloChlorinatorAPI:
                 ),
             )  # ReadForCatchAll(603)
 
-            await asyncio.sleep(5)
+            #await asyncio.sleep(5)
 
             await client.write_gatt_char(
                 UUID_RX_CHARACTERISTIC,
@@ -267,11 +267,11 @@ class HaloChlorinatorAPI:
                 ),
             )  # ReadForCatchAll(1) KEEP ALIVE
 
-            await asyncio.sleep(5)
+            #await asyncio.sleep(5)
             await client.stop_notify(UUID_TX_CHARACTERISTIC)
-            _LOGGER.info("Stop Notification and finish")
+            _LOGGER.debug("Stop Notification and finish")
             await asyncio.sleep(1)
             # await queue.put((time.time(), None))
-            _LOGGER.info("halo_ble_client finish: %s", self._result)
+            _LOGGER.debug("halo_ble_client finish: %s", self._result)
             self._connected = False
             return self._result
