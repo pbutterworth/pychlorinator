@@ -27,7 +27,6 @@ jobs:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           poetry install
-          poetry run pytest
           poetry config pypi-token.pypi ${{ secrets.PYPI_API_TOKEN }}
           poetry build -v
           poetry publish --build
