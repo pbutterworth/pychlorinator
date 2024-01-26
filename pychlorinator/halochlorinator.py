@@ -257,7 +257,7 @@ class HaloChlorinatorAPI:
                 ),
             )  # ReadForCatchAll(603)
 
-            #await asyncio.sleep(5)
+            await asyncio.sleep(5)
 
             await client.write_gatt_char(
                 UUID_RX_CHARACTERISTIC,
@@ -267,7 +267,7 @@ class HaloChlorinatorAPI:
                 ),
             )  # ReadForCatchAll(1) KEEP ALIVE
 
-            #await asyncio.sleep(5)
+            await asyncio.sleep(5)
             await client.stop_notify(UUID_TX_CHARACTERISTIC)
             _LOGGER.debug("Stop Notification and finish")
             await asyncio.sleep(1)

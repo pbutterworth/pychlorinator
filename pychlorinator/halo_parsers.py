@@ -880,6 +880,7 @@ class HeaterStateCharacteristic:
         self.CoolingAvailable = bool(
             self.HeaterStatusFlagValues.CoolingAvailable & self.HeaterStatusFlag
         )
+        self.HeaterMode = Mode(self.HeaterMode)
         self.HeaterPumpMode = Mode(self.HeaterPumpMode)
         self.HeatPumpMode = self.HeatpumpModeValues(self.HeatPumpMode)
         self.HeaterForced = self.HeaterForcedEnum(self.HeaterForced)
