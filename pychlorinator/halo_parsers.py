@@ -932,7 +932,8 @@ class EquipmentParameterCharacteristic:
             self.ParameterRelay1,
             self.ParameterRelay2,
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
-        self.pump_speed = self.SpeedLevels(self.FilterPumpSpeed)
+        self.FilterPumpSpeed = self.SpeedLevels(self.FilterPumpSpeed)
+        self.pump_speed = self.SpeedLevels(self.FilterPumpSpeed)  # remap
 
     class SpeedLevels(Enum):
         NotSet = -1
@@ -1081,18 +1082,36 @@ class SolarStateCharacteristic:
 class GPOSetupCharacteristic:
     def __init__(self, data, fmt="<BBBBBBB"):
         (
-            self.DeviceType,
+            device_type_val,
             self.Index,
-            self.OutletEnabled,
-            self.GPOFunction,
-            self.GPOName,
-            self.GPOLightingZone,
-            self.UseTimers,
+            outlet_enabled,
+            gpo_function_val,
+            gpo_name_val,
+            gpo_lighting_zone,
+            use_timers,
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
 
-        self.DeviceType = self.GPODeviceTypeValues(self.DeviceType)
-        self.GPOFunction = self.GPOFunctionValues(self.GPOFunction)
-        self.GPOName = self.GPONameValues(self.GPOName)
+        # Convert enum values to meaningful names
+        gpo_function = self.GPOFunctionValues(gpo_function_val)
+        gpo_name = self.GPONameValues(gpo_name_val)
+
+        # Custom logic for base attribute name
+        base_attr_number = self.get_base_attr_number(device_type_val, self.Index)
+
+        # Dynamically set attributes
+        setattr(self, f"GPO{base_attr_number}_OutletEnabled", outlet_enabled)
+        setattr(self, f"GPO{base_attr_number}_Function", gpo_function)
+        setattr(self, f"GPO{base_attr_number}_Name", gpo_name)
+        setattr(self, f"GPO{base_attr_number}_LightingZone", gpo_lighting_zone)
+        setattr(self, f"GPO{base_attr_number}_UseTimers", use_timers)
+
+    def get_base_attr_number(self, device_type, index):
+        if device_type == self.GPODeviceTypeValues.Connect1.value:
+            return 1 + index
+        elif device_type == self.GPODeviceTypeValues.Connect2.value:
+            return 3 + index
+        else:
+            return 0  # or other logic for non-Connect device types
 
     class GPODeviceTypeValues(Enum):
         FilterPump = 0
@@ -1136,12 +1155,20 @@ class RelaySetupCharacteristic:
     def __init__(self, data, fmt="<BBBBB"):
         (
             self.Index,
-            self.RelayEnabled,
-            self.RelayName,
-            self.RelayAction,
-            self.UseTimers,
+            relay_enabled,
+            relay_name_val,
+            relay_action,
+            use_timers,
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
-        self.RelayName = self.RelayNameValue(self.RelayName)
+
+        # Convert relay name byte to RelayNameValue enum
+        relay_name = self.RelayNameValue(relay_name_val)
+
+        # Dynamically set attributes based on the Index
+        setattr(self, f"Relay{self.Index + 1}_Name", relay_name)
+        setattr(self, f"Relay{self.Index + 1}_Enabled", relay_enabled)
+        setattr(self, f"Relay{self.Index + 1}_Action", relay_action)
+        setattr(self, f"Relay{self.Index + 1}_UseTimers", use_timers)
 
     class RelayNameValue(Enum):
         Relay1 = 0
@@ -1155,13 +1182,18 @@ class ValveSetupCharacteristic:
     def __init__(self, data, fmt="<BBBB"):
         (
             self.Index,
-            self.ValveEnabled,
-            self.ValveName,
-            self.UseTimers,
+            valve_enabled,
+            valve_name_val,
+            use_timers,
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
 
         # Convert valve name byte to ValveNameValue enum
-        self.ValveName = self.ValveNameValue(self.ValveName)
+        valve_name = self.ValveNameValue(valve_name_val)
+
+        # Dynamically set attributes based on the Index
+        setattr(self, f"Valve{self.Index + 1}_Name", valve_name)
+        setattr(self, f"Valve{self.Index + 1}_Enabled", valve_enabled)
+        setattr(self, f"Valve{self.Index + 1}_UseTimers", use_timers)
 
     class ValveNameValue(Enum):
         NoneValue = 0
