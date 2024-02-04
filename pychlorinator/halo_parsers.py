@@ -173,6 +173,28 @@ class SettingsCharacteristic2:
         self.General = self.general_values
         self.CellModel = self.CellModelValues(self.CellModel)
 
+        self.PrePurgeEnabled = bool(self.GeneralValues.PrePurgeEnabled & self.General)
+        self.PostPurgeEnabled = bool(self.GeneralValues.PostPurgeEnabled & self.General)
+        self.AcidFlushEnabled = bool(self.GeneralValues.AcidFlushEnabled & self.General)
+        self.AIEnabledReadlyOnly = bool(
+            self.GeneralValues.AIEnabledReadOnly & self.General
+        )
+        self.AiModeEnabled = (
+            bool(self.GeneralValues.AIEnabled & self.General)
+            or self.AIEnabledReadlyOnly
+        )
+        self.DisplayORP = bool(self.GeneralValues.DisplayORP & self.General)
+        self.IsDosingCapable = bool(self.GeneralValues.DosingEnabled & self.General)
+        self.ThreespeedPumpEnabled = bool(
+            self.GeneralValues.ThreeSpeedPumpEnabled & self.General
+        )
+        self.ThreeSpeedPumpEnabledReadOnly = bool(
+            self.GeneralValues.ThreeSpeedPumpEnabledReadOnly & self.General
+        )
+        self.EnableCleaningInterlock = bool(
+            self.GeneralValues.EnableCleaningInterlock & self.General
+        )
+
     @property
     def general_values(self):
         return self.GeneralValues(self.General)
@@ -218,16 +240,16 @@ class StateCharacteristic3:
             self.SubText3TimerInfo,
             *self.SubText3BytesData,
             self.SubText4ErrorInfo,
-            self.Flag,  # flag 64 priming?
+            self.Flag,
         ) = struct.unpack(self.fmt, data[: struct.calcsize(self.fmt)])
 
         self.PhMeasurement /= 10
         self.ph_measurement = self.PhMeasurement  # remap
 
-        self.IsInPoolSelection = bool(self.FlagsValues.SpaMode & self.Flags)
+        self.IsInPoolSelection = not bool(self.FlagsValues.SpaMode & self.Flags)
         self.IsCellRunning = bool(self.FlagsValues.CellOn & self.Flags)
         self.cell_is_operating = self.IsCellRunning  # remap
-        self.IsCelLReversed = bool(self.FlagsValues.CellReversed & self.Flags)
+        self.IsCellReversed = bool(self.FlagsValues.CellReversed & self.Flags)
         self.IsCoolingFanOn = bool(self.FlagsValues.CoolingFanOn & self.Flags)
         self.IsLightOutputOn = bool(self.FlagsValues.LightOutputOn & self.Flags)
         self.DosingPumpOn = bool(self.FlagsValues.DosingPumpOn & self.Flags)
@@ -239,6 +261,7 @@ class StateCharacteristic3:
         self.chlorine_control_status = self.SubText1  # remap
         self.SubText2 = self.SubText2Values(self.SubText2Ph)
         self.SubText3 = self.SubText3Values(self.SubText3TimerInfo)
+        self.SubText4 = self.SubText4Values(self.SubText4ErrorInfo)
 
     # @property
     # def flags_values(self):
@@ -354,92 +377,84 @@ class StateCharacteristic3:
 
     class SubText4Values(IntEnum):
         NoneValue = 0
-        SanitisingPoolOff = 1
-        SanitisingPoolUntil = 2
-        SanitisingSpaOff = SanitisingPoolUntil | SanitisingPoolOff
-        SanitisingSpaUntil = 4
-        SanitisingOff = SanitisingSpaUntil | SanitisingPoolOff
-        SanitisingUntil = SanitisingSpaUntil | SanitisingPoolUntil
-        PrimingFor = SanitisingUntil | SanitisingPoolOff
-        HeaterCooldownTimeRemaining = 8
         IOExpander = 1
         EEPROM = 2
-        RTC = EEPROM | IOExpander
+        RTC = 3  # EEPROM | IOExpander
         NoComPowerToUser = 4
-        NoComUserToPower = NoComPowerToUser | IOExpander
-        Backwashing = NoComPowerToUser | EEPROM
-        SensorCalibration = Backwashing | IOExpander
+        NoComUserToPower = 5  # NoComPowerToUser | IOExpander
+        Backwashing = 6  # NoComPowerToUser | EEPROM
+        SensorCalibration = 7  # Backwashing | IOExpander
         AccessoryPairing = 8
-        ChlorOverheat = AccessoryPairing | IOExpander
-        TempShortCir = AccessoryPairing | EEPROM
-        TempOpenCir = TempShortCir | IOExpander
-        FactoryReset = AccessoryPairing | NoComPowerToUser
+        ChlorOverheat = 9  # AccessoryPairing | IOExpander
+        TempShortCir = 10  # AccessoryPairing | EEPROM
+        TempOpenCir = 11  # TempShortCir | IOExpander
+        FactoryReset = 12  # AccessoryPairing | NoComPowerToUser
         UpdateSuccess = 50
-        UpdateFailed = UpdateSuccess | IOExpander
+        UpdateFailed = 51  # UpdateSuccess | IOExpander
         UpdateAvailable = 52
         LostCom = 100
-        LowVoltage = LostCom | IOExpander
-        PumpHighTemp = LostCom | EEPROM
-        OverCurrent = PumpHighTemp | IOExpander
+        LowVoltage = 101  # LostCom | IOExpander
+        PumpHighTemp = 102  # LostCom | EEPROM
+        OverCurrent = 103  # PumpHighTemp | IOExpander
         BlockedInlet = 104
         PumpGnlFault = 150
-        PumpLimitFault = PumpGnlFault | IOExpander
+        PumpLimitFault = 151  # PumpGnlFault | IOExpander
         PumpVoltFault = 152
-        PumpCommFault = PumpVoltFault | IOExpander
-        PumpTempFault = PumpVoltFault | EEPROM
-        PumpSoftFault = PumpTempFault | IOExpander
-        PumpFailedStart = PumpVoltFault | NoComPowerToUser
-        PumpCommErr = PumpFailedStart | IOExpander
-        PumpBlocked = PumpFailedStart | EEPROM
+        PumpCommFault = 153  # PumpVoltFault | IOExpander
+        PumpTempFault = 154  # PumpVoltFault | EEPROM
+        PumpSoftFault = 155  # PumpTempFault | IOExpander
+        PumpFailedStart = 156  # PumpVoltFault | NoComPowerToUser
+        PumpCommErr = 157  # PumpFailedStart | IOExpander
+        PumpBlocked = 158  # PumpFailedStart | EEPROM
         pHComLost = 200
-        ORPComLost = pHComLost | IOExpander
-        pHHigh = pHComLost | EEPROM
-        ORPHigh = pHHigh | IOExpander
-        pHLow = pHComLost | NoComPowerToUser
-        ORPLow = pHLow | IOExpander
-        pHACErr = pHLow | EEPROM
-        ORPACErr = pHACErr | IOExpander
+        ORPComLost = 201  # pHComLost | IOExpander
+        pHHigh = 202  # pHComLost | EEPROM
+        ORPHigh = 203  # pHHigh | IOExpander
+        pHLow = 204  # pHComLost | NoComPowerToUser
+        ORPLow = 205  # pHLow | IOExpander
+        pHACErr = 206  # pHLow | EEPROM
+        ORPACErr = 207  # pHACErr | IOExpander
         NoComHeater = 300
-        LowWaterTemp = NoComHeater | IOExpander
-        HighWaterTemp = NoComHeater | EEPROM
-        MechOverheat = HighWaterTemp | IOExpander
+        LowWaterTemp = 301  # NoComHeater | IOExpander
+        HighWaterTemp = 302  # NoComHeater | EEPROM
+        MechOverheat = 303  # HighWaterTemp | IOExpander
         TherShortCir = 304
-        FlameRollOut = TherShortCir | IOExpander
-        FlueOverheat = TherShortCir | EEPROM
-        CondensateOverflow = FlueOverheat | IOExpander
-        HXTherOpenCir = TherShortCir | NoComPowerToUser
-        HXTherShortCir = HXTherOpenCir | IOExpander
-        WtrSsrSrted = HXTherOpenCir | EEPROM
-        WtrSsrOpen = WtrSsrSrted | IOExpander
-        HeaterHighTemp = TherShortCir | AccessoryPairing
-        LowRefPrs = HeaterHighTemp | IOExpander
-        HighRefPrs = HeaterHighTemp | EEPROM
-        SrtedCoilSsr = HighRefPrs | IOExpander
-        OpenCoilSsr = HeaterHighTemp | NoComPowerToUser
-        Interlock = OpenCoilSsr | IOExpander
-        HighLimit = OpenCoilSsr | EEPROM
-        AirSsrSrted = HighLimit | IOExpander
+        FlameRollOut = 305  # TherShortCir | IOExpander
+        FlueOverheat = 306  # TherShortCir | EEPROM
+        CondensateOverflow = 307  # FlueOverheat | IOExpander
+        HXTherOpenCir = 308  # TherShortCir | NoComPowerToUser
+        HXTherShortCir = 309  # HXTherOpenCir | IOExpander
+        WtrSsrSrted = 310  # HXTherOpenCir | EEPROM
+        WtrSsrOpen = 311  # WtrSsrSrted | IOExpander
+        HeaterHighTemp = 312  # TherShortCir | AccessoryPairing
+        LowRefPrs = 313  # HeaterHighTemp | IOExpander
+        HighRefPrs = 314  # HeaterHighTemp | EEPROM
+        SrtedCoilSsr = 315  # HighRefPrs | IOExpander
+        OpenCoilSsr = 316  # HeaterHighTemp | NoComPowerToUser
+        Interlock = 317  # OpenCoilSsr | IOExpander
+        HighLimit = 318  # OpenCoilSsr | EEPROM
+        AirSsrSrted = 319  # HighLimit | IOExpander
         GPO1ComLost = 400
-        GPO2ComLost = GPO1ComLost | IOExpander
-        Light1LostCom = GPO1ComLost | LostCom
-        Light2LostCom = Light1LostCom | IOExpander
+        GPO2ComLost = 401  # GPO1ComLost | IOExpander
+        Light1LostCom = 500  # GPO1ComLost | LostCom
+        Light2LostCom = 501  # Light1LostCom | IOExpander
         SlrRoofSsrSrted = 600
-        SlrRoofSsrDis = SlrRoofSsrSrted | IOExpander
-        SlrWtrSsrSrted = SlrRoofSsrSrted | EEPROM
-        SlrWtrSsrDis = SlrWtrSsrSrted | IOExpander
+        SlrRoofSsrDis = 601  # SlrRoofSsrSrted | IOExpander
+        SlrWtrSsrSrted = 602  # SlrRoofSsrSrted | EEPROM
+        SlrWtrSsrDis = 603  # SlrWtrSsrSrted | IOExpander
         NoFlow = 700
-        HighSalt = NoFlow | IOExpander
-        LowSalt = NoFlow | EEPROM
-        WaterTooCold = LowSalt | IOExpander
+        HighSalt = 701  # NoFlow | IOExpander
+        LowSalt = 702  # NoFlow | EEPROM
+        WaterTooCold = 703  # LowSalt | IOExpander
         DownRate2 = 705
         DownRate1 = 706
-        SamplingOnly = DownRate1 | IOExpander
+        SamplingOnly = 707  # DownRate1 | IOExpander
         DosingDisabled = 708
-        DlyAcidDoseLimit = DosingDisabled | IOExpander
-        CellDis = DosingDisabled | EEPROM
+        DlyAcidDoseLimit = 709  # DosingDisabled | IOExpander
+        CellDis = 710  # DosingDisabled | EEPROM
         pHBatteryLow = 900
-        ORPBatteryLow = pHBatteryLow | IOExpander
-        pHRequired = pHBatteryLow | EEPROM
+        ORPBatteryLow = 901  # pHBatteryLow | IOExpander
+        pHRequired = 902  # pHBatteryLow | EEPROM
         ConnectionError = 1400
         Unknown = 65535
 
@@ -455,14 +470,18 @@ class WaterVolumeCharacteristic:
             self.SpaVolume,
             self.PoolLeftFilter,
             self.SpaLeftFilter,
-            self.Flag,
+            self.WaterVolumeFlag,  # renamed to remove clash
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
-        self.Flag = self.flag_values
+        self.WaterVolumeFlag = self.flag_values
         self.VolumeUnits = self.VolumeUnit_value
+
+        self.PoolEnabled = bool(self.FlagValues.PoolEnabled & self.WaterVolumeFlag)
+        self.SpaEnabled = bool(self.FlagValues.SpaEnabled & self.WaterVolumeFlag)
+        self.PoolSpaEnabled = self.PoolEnabled & self.SpaEnabled
 
     @property
     def flag_values(self):
-        return self.FlagValues(self.Flag)
+        return self.FlagValues(self.WaterVolumeFlag)
 
     @property
     def VolumeUnit_value(self):
@@ -515,8 +534,8 @@ class CapabilitiesCharacteristic2:
         self.PhControlType = self.PhControlType_value
         self.ph_control_type = self.PhControlType  # remap
         self.ChlorineControlType = self.ChlorineControlType_value
-        self.OrpControlType = self.ChlorineControlType_value
-        self.chlorine_control_type = self.OrpControlType
+        self.OrpControlType = self.ChlorineControlType_value  # remap
+        self.chlorine_control_type = self.OrpControlType  # remap
 
     @property
     def PhControlType_value(self):
@@ -880,7 +899,7 @@ class HeaterStateCharacteristic:
         self.CoolingAvailable = bool(
             self.HeaterStatusFlagValues.CoolingAvailable & self.HeaterStatusFlag
         )
-        self.HeaterMode = Mode(self.HeaterMode)
+        self.HeaterMode = Mode(self.HeaterMode)  ## to confirm if mode enum
         self.HeaterPumpMode = Mode(self.HeaterPumpMode)
         self.HeatPumpMode = self.HeatpumpModeValues(self.HeatPumpMode)
         self.HeaterForced = self.HeaterForcedEnum(self.HeaterForced)
@@ -988,9 +1007,16 @@ class CellCharacteristic2:
 
 
 class PowerBoardCharacteristic:
+    """Represents characteristics of a power board.
+
+    Attributes:
+        PowerBoardRuntime (int): The runtime of the power board in hours.
+
+    """
+
     def __init__(self, data, fmt="<I"):
         (
-            self.PowerBoardRuntime  # hrs
+            self.PowerBoardRuntime,  # hrs
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
         # self.PowerBoardRuntime /= 3600 #??
 
@@ -1022,7 +1048,7 @@ class SolarConfigCharacteristic:
             self.SolarEnableFlush,
             self.SolarFlushTimeHR,
             self.SolarFlushTimeMin,
-            self.Differential,
+            self.SolarDifferential,  # renamed
             self.SolarEnableExclPeriod,
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
 
