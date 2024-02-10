@@ -18,6 +18,8 @@ from .halo_parsers import (
     EquipmentModeCharacteristic,
     EquipmentParameterCharacteristic,
     GPOSetupCharacteristic,
+    HeaterAction,
+    HeaterAppActions,
     HeaterCapabilitiesCharacteristic,
     HeaterConfigCharacteristic,
     HeaterCooldownStateCharacteristic,
@@ -122,6 +124,26 @@ class HaloChlorinatorAPI:
 
             data = ChlorinatorAction(action).__bytes__()
             _LOGGER.debug("Data to write %s", data.hex())
+            data = encrypt_characteristic(data, self._session_key)
+            _LOGGER.debug("Encrypted data to write %s", data.hex())
+            await client.write_gatt_char(UUID_RX_CHARACTERISTIC, data)
+
+    async def async_write_heater_action(self, action: HeaterAppActions):
+        """Connect to the Chlorinator and write an action command to it."""
+        while self._connected:
+            _LOGGER.debug("Already connected, Waiting")
+            await asyncio.sleep(5)
+
+        async with BleakClient(self._ble_device, timeout=10) as client:
+            self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY_2)
+            _LOGGER.debug("Got session key %s", self._session_key.hex())
+
+            mac = encrypt_mac_key(self._session_key, bytes(self._access_code, "utf_8"))
+            _LOGGER.debug("Mac key to write %s", mac)
+            await client.write_gatt_char(UUID_MASTER_AUTHENTICATION_2, mac)
+
+            data = HeaterAction(action).__bytes__()
+            _LOGGER.info("Data to write %s", data.hex())
             data = encrypt_characteristic(data, self._session_key)
             _LOGGER.debug("Encrypted data to write %s", data.hex())
             await client.write_gatt_char(UUID_RX_CHARACTERISTIC, data)

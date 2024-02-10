@@ -15,6 +15,25 @@ class ChlorinatorActions(IntEnum):
     Low = 4
     Medium = 5
     High = 6
+    Pool = 7
+    Spa = 8
+
+
+class HeaterAppActions(IntEnum):
+    NoAction = 0
+    HeaterPumpOff = 1
+    HeaterPumpAuto = 2
+    HeaterPumpOn = 3
+    HeaterOff = 4
+    HeaterOn = 5
+    IncreaseSetpoint = 6
+    DecreaseSetpoint = 7
+    Pool = 8
+    Spa = 9
+    DisableUseTimers = 10
+    EnableUseTimers = 11
+    ModeHeating = 12
+    ModeCooling = 13
 
 
 class ChlorinatorAction:
@@ -36,6 +55,23 @@ class ChlorinatorAction:
         fmt = "=3s B i 12x"
         _LOGGER.info("Selected Action is %s", self.action)
         return struct.pack(fmt, self.header_bytes, self.action, self.period_minutes)
+
+
+class HeaterAction:
+    """Represent an Heater action command"""
+
+    def __init__(
+        self,
+        action: HeaterAppActions = HeaterAppActions.NoAction,
+        header_bytes: bytes = b"\x03\xF6\x01",
+    ) -> None:
+        self.action = action
+        self.header_bytes = header_bytes
+
+    def __bytes__(self):
+        fmt = "=3s B 16x"
+        _LOGGER.info("Selected Heater Action is %s", self.action)
+        return struct.pack(fmt, self.header_bytes, self.action)
 
 
 class ScanResponse:
@@ -899,7 +935,9 @@ class HeaterStateCharacteristic:
         self.CoolingAvailable = bool(
             self.HeaterStatusFlagValues.CoolingAvailable & self.HeaterStatusFlag
         )
-        self.HeaterMode = Mode(self.HeaterMode)  ## to confirm if mode enum
+        self.HeaterMode = self.HeaterModeValues(
+            self.HeaterMode
+        )  ##Looks like just on / off
         self.HeaterPumpMode = Mode(self.HeaterPumpMode)
         self.HeatPumpMode = self.HeatpumpModeValues(self.HeatPumpMode)
         self.HeaterForced = self.HeaterForcedEnum(self.HeaterForced)
@@ -909,6 +947,13 @@ class HeaterStateCharacteristic:
     @property
     def heater_status_flags(self):
         return HeaterStateCharacteristic.HeaterStatusFlagValues(self.HeaterStatusFlag)
+
+    class HeaterModeValues(Enum):
+        Off = 0
+        On = 1
+
+        def __str__(self):
+            return self.name
 
     class HeaterStatusFlagValues(IntFlag):
         HeaterOn = 1
@@ -1231,6 +1276,49 @@ class ValveSetupCharacteristic:
 
         def __str__(self):
             return self.name
+
+
+class GPOCustomNameStruct:
+    def __init__(self, data, fmt="<BBBB12s"):
+        # Format: 4 bytes followed by a 12-byte string
+        (
+            self.DeviceType,
+            self.Index,
+            self.MessageNumber,
+            self.CustomNameLength,
+            self.CustomNameFragment,
+        ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
+
+        # Decode the custom name fragment, removing any null bytes
+        self.CustomNameFragment = self.CustomNameFragment.decode("utf-8").rstrip("\x00")
+
+
+class RelayCustomNameStruct:
+    def __init__(self, data, fmt="<BBB13s"):
+        # Format: 4 bytes followed by a 12-byte string
+        (
+            self.Index,
+            self.MessageNumber,
+            self.CustomNameLength,
+            self.CustomNameFragment,
+        ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
+
+        # Decode the custom name fragment, removing any null bytes
+        self.CustomNameFragment = self.CustomNameFragment.decode("utf-8").rstrip("\x00")
+
+
+class ValveCustomNameStruct:
+    def __init__(self, data, fmt="<BBB13s"):
+        # Format: 4 bytes followed by a 12-byte string
+        (
+            self.Index,
+            self.MessageNumber,
+            self.CustomNameLength,
+            self.CustomNameFragment,
+        ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
+
+        # Decode the custom name fragment, removing any null bytes
+        self.CustomNameFragment = self.CustomNameFragment.decode("utf-8").rstrip("\x00")
 
 
 class DeviceProtocol(Enum):
