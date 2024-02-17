@@ -33,6 +33,8 @@ from .halo_parsers import (
     RelaySetupCharacteristic,
     SetPointCharacteristic,
     SettingsCharacteristic2,
+    SolarAction,
+    SolarAppActions,
     SolarCapabilitiesCharacteristic,
     SolarConfigCharacteristic,
     SolarStateCharacteristic,
@@ -106,7 +108,7 @@ class HaloChlorinatorAPI:
         self._result: dict[str, Any] = None
         self._connected = False
 
-    _LOGGER.info("Hello from HaloChlorinator API")
+    _LOGGER.debug("Hello from HaloChlorinator API")
 
     async def async_write_action(self, action: ChlorinatorActions):
         """Connect to the Chlorinator and write an action command to it."""
@@ -132,7 +134,7 @@ class HaloChlorinatorAPI:
         """Connect to the Chlorinator and write an action command to it."""
         while self._connected:
             _LOGGER.debug("Already connected, Waiting")
-            await asyncio.sleep(5)
+            await asyncio.sleep(1)
 
         async with BleakClient(self._ble_device, timeout=10) as client:
             self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY_2)
@@ -143,10 +145,31 @@ class HaloChlorinatorAPI:
             await client.write_gatt_char(UUID_MASTER_AUTHENTICATION_2, mac)
 
             data = HeaterAction(action).__bytes__()
-            _LOGGER.info("Data to write %s", data.hex())
+            _LOGGER.debug("Data to write %s", data.hex())
             data = encrypt_characteristic(data, self._session_key)
             _LOGGER.debug("Encrypted data to write %s", data.hex())
             await client.write_gatt_char(UUID_RX_CHARACTERISTIC, data)
+
+    async def async_write_solar_action(self, action: SolarAppActions):
+        """Connect to the Chlorinator and write an action command to it."""
+        while self._connected:
+            _LOGGER.debug("Already connected, Waiting")
+            await asyncio.sleep(1)
+
+        async with BleakClient(self._ble_device, timeout=10) as client:
+            self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY_2)
+            _LOGGER.debug("Got session key %s", self._session_key.hex())
+
+            mac = encrypt_mac_key(self._session_key, bytes(self._access_code, "utf_8"))
+            _LOGGER.debug("Mac key to write %s", mac)
+            await client.write_gatt_char(UUID_MASTER_AUTHENTICATION_2, mac)
+
+            data = SolarAction(action).__bytes__()
+            _LOGGER.debug("Data to write %s", data.hex())
+            data = encrypt_characteristic(data, self._session_key)
+            _LOGGER.debug("Encrypted data to write %s", data.hex())
+            await client.write_gatt_char(UUID_RX_CHARACTERISTIC, data)
+
 
     async def async_gatherdata(self) -> dict[str, Any]:
         """Connect to the Chlorinator to get data."""
@@ -217,21 +240,21 @@ class HaloChlorinatorAPI:
             _LOGGER.debug("Got session key %s", self._session_key.hex())
 
             mac = encrypt_mac_key(self._session_key, bytes(self._access_code, "utf_8"))
-            # _LOGGER.info("mac key to write %s", mac.hex())
+            # _LOGGER.debug("mac key to write %s", mac.hex())
             await client.write_gatt_char(UUID_MASTER_AUTHENTICATION_2, mac)
 
             await client.start_notify(UUID_TX_CHARACTERISTIC, callback_handler)
-            # _LOGGER.info("Turn on notifications for %s", UUID_TX_CHARACTERISTIC)
+            _LOGGER.debug("Turn on notifications for %s", UUID_TX_CHARACTERISTIC)
 
-            await client.write_gatt_char(
-                UUID_RX_CHARACTERISTIC,
-                encrypt_characteristic(
-                    pad_byte_array(bytes([2, 1]), 20),
-                    self._session_key,
-                ),
-            )  # ReadForCatchAll(1) KEEP ALIVE
+            # await client.write_gatt_char(
+            #     UUID_RX_CHARACTERISTIC,
+            #     encrypt_characteristic(
+            #         pad_byte_array(bytes([2, 1]), 20),
+            #         self._session_key,
+            #     ),
+            # )  # ReadForCatchAll(1) KEEP ALIVE
 
-            # _LOGGER.info("Perform Vomit Async")
+            _LOGGER.debug("Perform Vomit Async")
             await client.write_gatt_char(
                 UUID_RX_CHARACTERISTIC,
                 encrypt_characteristic(
@@ -239,6 +262,7 @@ class HaloChlorinatorAPI:
                     self._session_key,
                 ),
             )  # ReadForCatchAll(107)
+
             await client.write_gatt_char(
                 UUID_RX_CHARACTERISTIC,
                 encrypt_characteristic(
@@ -279,21 +303,33 @@ class HaloChlorinatorAPI:
                 ),
             )  # ReadForCatchAll(603)
 
-            await asyncio.sleep(5)
+            # await asyncio.sleep(4)
+            # Instead of disconnecting from Halo, let the halo disconnect from us to prevent its ble from hanging
+            timeout = 15  # seconds
+            start_time = asyncio.get_event_loop().time()
 
-            await client.write_gatt_char(
-                UUID_RX_CHARACTERISTIC,
-                encrypt_characteristic(
-                    pad_byte_array(bytes([2, 1]), 20),
-                    self._session_key,
-                ),
-            )  # ReadForCatchAll(1) KEEP ALIVE
+            while client.is_connected:
+                if (asyncio.get_event_loop().time() - start_time) > timeout:
+                    _LOGGER.debug("Timeout reached, device did not disconnect in the expected time")
+                    break
+                await asyncio.sleep(0.1)  # Short sleep to yield control and prevent a busy wait
 
-            await asyncio.sleep(5)
-            await client.stop_notify(UUID_TX_CHARACTERISTIC)
-            _LOGGER.debug("Stop Notification and finish")
-            await asyncio.sleep(1)
-            # await queue.put((time.time(), None))
-            _LOGGER.debug("halo_ble_client finish: %s", self._result)
+
+
+
+            # await client.write_gatt_char(
+            #     UUID_RX_CHARACTERISTIC,
+            #     encrypt_characteristic(
+            #         pad_byte_array(bytes([2, 1]), 20),
+            #         self._session_key,
+            #     ),
+            # )  # ReadForCatchAll(1) KEEP ALIVE
+
+            # await asyncio.sleep(5)
+            # await client.stop_notify(UUID_TX_CHARACTERISTIC)
+            # _LOGGER.debug("Stop Notification and finish")
+            # await asyncio.sleep(1)
+            
+            _LOGGER.debug("halo_ble_client finished: %s", self._result)
             self._connected = False
             return self._result

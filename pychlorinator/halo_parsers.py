@@ -17,6 +17,31 @@ class ChlorinatorActions(IntEnum):
     High = 6
     Pool = 7
     Spa = 8
+    DismissInfoMessage = 9
+    DisableAcidDosingIndefinitely = 10
+    DisableAcidDosingForPeriod = 11
+    ResetStatistics = 12
+    TriggerCellReversal = 13
+    AllOff = 14
+    AllAuto = 15
+    Backwash = 16
+    PrimeAcid = 17
+    ManualDose = 18
+    ProbeCalibrationStart = 19
+    ProbeCalibrationAction = 20
+    AbortMaintTask = 21
+    SanitiseUntilTimerTomorrow = 22
+    FilterForPeriod = 23
+    FilterAndCleanForPeriod = 24
+    ResetToFactoryDefaults = 25
+    PoolFavourite = 26
+    SpaFavourite = 27
+    Favourite1 = 28
+    Favourite2 = 29
+    ClearEventList = 30
+    SanitiseForPeriod = 31
+    SanitiseAndCleanForPeriod = 32
+    OverrideHeaterCooldown = 33
 
 
 class HeaterAppActions(IntEnum):
@@ -36,6 +61,27 @@ class HeaterAppActions(IntEnum):
     ModeCooling = 13
 
 
+class SolarAppActions(IntEnum):
+    NoAction = 0
+    Off = 1
+    Auto = 2
+    On = 3
+    Summer = 4
+    Winter = 5
+    IncreaseSetPoint = 6
+    DecreaseSetPoint = 7
+
+
+class LightAppActions(IntEnum):
+    NoAction = 0
+    SetZoneModeToManual = 1
+    SetZoneModeToAuto = 2
+    TurnOffZone = 3
+    TurnOnZone = 4
+    SetZoneColour = 5
+    SynchroniseZoneColour = 6
+
+
 class ChlorinatorAction:
     """Represent an action command"""
 
@@ -45,7 +91,7 @@ class ChlorinatorAction:
         self,
         action: ChlorinatorActions = ChlorinatorActions.NoAction,
         period_minutes: int = 0,
-        header_bytes: bytes = b"\x03\xF4\x01",
+        header_bytes: bytes = b"\x03\xF4\x01",  # 500
     ) -> None:
         self.action = action
         self.period_minutes = period_minutes
@@ -63,7 +109,7 @@ class HeaterAction:
     def __init__(
         self,
         action: HeaterAppActions = HeaterAppActions.NoAction,
-        header_bytes: bytes = b"\x03\xF6\x01",
+        header_bytes: bytes = b"\x03\xF6\x01",  # 502
     ) -> None:
         self.action = action
         self.header_bytes = header_bytes
@@ -71,6 +117,40 @@ class HeaterAction:
     def __bytes__(self):
         fmt = "=3s B 16x"
         _LOGGER.info("Selected Heater Action is %s", self.action)
+        return struct.pack(fmt, self.header_bytes, self.action)
+
+
+class SolarAction:
+    """Represent an Solar action command"""
+
+    def __init__(
+        self,
+        action: SolarAppActions = SolarAppActions.NoAction,
+        header_bytes: bytes = b"\x03\xF7\x01",  # 503
+    ) -> None:
+        self.action = action
+        self.header_bytes = header_bytes
+
+    def __bytes__(self):
+        fmt = "=3s B 16x"
+        _LOGGER.info("Selected Solar Action is %s", self.action)
+        return struct.pack(fmt, self.header_bytes, self.action)
+
+
+class LightAction:
+    """Represent an Light action command"""
+
+    def __init__(
+        self,
+        action: LightAppActions = LightAppActions.NoAction,
+        header_bytes: bytes = b"\x03\xF5\x01",  # 501
+    ) -> None:
+        self.action = action
+        self.header_bytes = header_bytes
+
+    def __bytes__(self):
+        fmt = "=3s B 16x"
+        _LOGGER.info("Selected Light Action is %s", self.action)
         return struct.pack(fmt, self.header_bytes, self.action)
 
 
@@ -1112,6 +1192,12 @@ class SolarStateCharacteristic:
             self.SolarSpecTemp,
             self.SolarMessage,
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
+
+        self.SolarWaterTemp /= 10
+        self.SolarRoofTemp /= 10
+
+        self.SolarIsSummerMode = self.SolarSeason
+        self.SolarIsWinterMode = not self.SolarSeason
 
         self.SolarMode = Mode(self.SolarMode)
         self.SolarPumpState = bool(self.SolarFlagValues.SolarPumpState & self.SolarFlag)
