@@ -376,6 +376,7 @@ class StateCharacteristic3:
         self.SubText1 = self.SubText1Values(self.SubText1Chlorine)
         self.chlorine_control_status = self.SubText1  # remap
         self.SubText2 = self.SubText2Values(self.SubText2Ph)
+        self.ph_control_status = self.SubText2  # remap
         self.SubText3 = self.SubText3Values(self.SubText3TimerInfo)
         self.SubText4 = self.SubText4Values(self.SubText4ErrorInfo)
 
@@ -624,8 +625,8 @@ class SetPointCharacteristic:
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
 
         self.PhControlSetpoint /= 10
-        self.ph_control_setpoint = self.PhControlSetpoint
-        self.chlorine_control_setpoint = self.OrpControlSetpoint
+        self.ph_control_setpoint = self.PhControlSetpoint # remap
+        self.chlorine_control_setpoint = self.OrpControlSetpoint # remap
 
 
 class CapabilitiesCharacteristic2:
@@ -650,7 +651,7 @@ class CapabilitiesCharacteristic2:
         self.PhControlType = self.PhControlType_value
         self.ph_control_type = self.PhControlType  # remap
         self.ChlorineControlType = self.ChlorineControlType_value
-        self.OrpControlType = self.ChlorineControlType_value  # remap
+        self.OrpControlType = self.ChlorineControlType_value
         self.chlorine_control_type = self.OrpControlType  # remap
 
     @property
@@ -698,11 +699,11 @@ class EquipmentModeCharacteristic:
         ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
 
         self.mode = Mode(self.FilterPumpMode)
-        self.EquipmentEnabled == 1  # is this correct?
+        self.EquipmentEnabled = self.EquipmentEnabled == 1
         self.StateFilterPump = bool(
             self.StateBitfieldValues.FilterPump & self.StateBitfield
         )
-        self.pump_is_operating = self.StateFilterPump  ## remap name
+        self.pump_is_operating = self.StateFilterPump  ## remap
         self.AutoEnabledFilterPump = bool(
             self.AutoEnabledBitfieldValues.FilterPump & self.AutoEnabledBitfield
         )
@@ -793,6 +794,68 @@ class EquipmentModeCharacteristic:
         Valve4 = 256
         Relay1 = 512
         Relay2 = 1024
+
+
+class EquipmentModeStateCharacteristicV2:
+    def __init__(self, data, fmt="<BBBBBBBBBBBB"):
+        (
+            self.FilterPump_v2,
+            self.Heater_v2,
+            self.GPO1_v2,
+            self.GPO2_v2,
+            self.GPO3_v2,
+            self.GPO4_v2,
+            self.Valve1_v2,
+            self.Valve2_v2,
+            self.Valve3_v2,
+            self.Valve4_v2,
+            self.Relay1_v2,
+            self.Relay2_v2,
+        ) = struct.unpack(fmt, data[: struct.calcsize(fmt)])
+        
+        # Populate modes and states for all equipment
+        self.populate_modes_and_states()
+
+    def populate_modes_and_states(self):
+        # Iterate over all equipment attributes to set their modes and states
+        for equipment_name in ['FilterPump_v2', 'Heater_v2', 'GPO1_v2', 'GPO2_v2', 'GPO3_v2', 'GPO4_v2', 'Valve1_v2', 'Valve2_v2', 'Valve3_v2', 'Valve4_v2', 'Relay1_v2', 'Relay2_v2']:
+            equipment_value = getattr(self, equipment_name)
+            # _LOGGER.debug("name: %s equipment_value %s",equipment_name, equipment_value)
+            setattr(self, f"{equipment_name}_CurrentMode", self.get_current_mode(equipment_value))
+            setattr(self, f"{equipment_name}_TargetMode", self.get_target_mode(equipment_value))
+            setattr(self, f"{equipment_name}_CurrentState", self.get_current_state(equipment_value))
+            setattr(self, f"{equipment_name}_TargetState", self.get_target_state(equipment_value))
+
+    @staticmethod
+    def get_current_mode(equipment):
+        try:
+            return GPOMode(equipment & 7)
+        except ValueError:
+            # Handle the undefined value here, e.g., log it or default to NotAssigned
+            return GPOMode.NotAssigned
+
+    @staticmethod
+    def get_target_mode(equipment):
+        try:
+            return GPOMode((equipment >> 3) & 7)
+        except ValueError:
+            # Handle the undefined value here
+            return GPOMode.NotAssigned
+
+    @staticmethod
+    def get_current_state(equipment):
+        return ((equipment >> 6) & 1) == 1
+
+    @staticmethod
+    def get_target_state(equipment):
+        return ((equipment >> 7) & 1) == 1
+
+    def __repr__(self):
+        return (f"EquipmentModeStateCharacteristicV2(FilterPump={self.FilterPump}, Heater={self.Heater}, "
+                f"GPO1={self.GPO1}, GPO2={self.GPO2}, GPO3={self.GPO3}, GPO4={self.GPO4}, "
+                f"Valve1={self.Valve1}, Valve2={self.Valve2}, Valve3={self.Valve3}, Valve4={self.Valve4}, "
+                f"Relay1={self.Relay1}, Relay2={self.Relay2})")
+
 
 
 class LightStateCharacteristic:
@@ -1420,6 +1483,7 @@ class DeviceProtocol(Enum):
 
 
 class Mode(Enum):
+    NotAssigned = -1
     Off = 0
     Auto = 1
     On = 2
@@ -1429,6 +1493,7 @@ class Mode(Enum):
 
 
 class GPOMode(Enum):
+    NotAssigned = -1
     Off = 0
     Auto = 1
     On = 2

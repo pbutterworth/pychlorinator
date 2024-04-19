@@ -16,6 +16,7 @@ from .halo_parsers import (
     ChlorinatorActions,
     DeviceProfileCharacteristic2,
     EquipmentModeCharacteristic,
+    EquipmentModeStateCharacteristicV2,
     EquipmentParameterCharacteristic,
     GPOSetupCharacteristic,
     HeaterAction,
@@ -24,6 +25,8 @@ from .halo_parsers import (
     HeaterConfigCharacteristic,
     HeaterCooldownStateCharacteristic,
     HeaterStateCharacteristic,
+    LightAction,
+    LightAppActions,
     LightCapabilitiesCharacteristic,
     LightSetupCharacteristic,
     LightStateCharacteristic,
@@ -170,6 +173,25 @@ class HaloChlorinatorAPI:
             _LOGGER.debug("Encrypted data to write %s", data.hex())
             await client.write_gatt_char(UUID_RX_CHARACTERISTIC, data)
 
+    async def async_write_light_action(self, action: LightAppActions):
+        """Connect to the Chlorinator and write an action command to it."""
+        while self._connected:
+            _LOGGER.debug("Already connected, Waiting")
+            await asyncio.sleep(1)
+
+        async with BleakClient(self._ble_device, timeout=10) as client:
+            self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY_2)
+            _LOGGER.debug("Got session key %s", self._session_key.hex())
+
+            mac = encrypt_mac_key(self._session_key, bytes(self._access_code, "utf_8"))
+            _LOGGER.debug("Mac key to write %s", mac)
+            await client.write_gatt_char(UUID_MASTER_AUTHENTICATION_2, mac)
+
+            data = LightAction(action).__bytes__()
+            _LOGGER.debug("Data to write %s", data.hex())
+            data = encrypt_characteristic(data, self._session_key)
+            _LOGGER.debug("Encrypted data to write %s", data.hex())
+            await client.write_gatt_char(UUID_RX_CHARACTERISTIC, data)
 
     async def async_gatherdata(self) -> dict[str, Any]:
         """Connect to the Chlorinator to get data."""
@@ -199,6 +221,7 @@ class HaloChlorinatorAPI:
                 # 107: ExtractFlexSettings,
                 201: EquipmentModeCharacteristic,  # ExtractEquipmentConfig
                 202: EquipmentParameterCharacteristic,  # ExtractEquipmentParameter
+                206: EquipmentModeStateCharacteristicV2,  # ExtractEquipmentConfigV2
                 300: LightStateCharacteristic,  # ExtractLightState
                 301: LightCapabilitiesCharacteristic,  # ExtractLightCapabilities
                 302: LightSetupCharacteristic,  # ExtractLightZoneNames,
@@ -310,12 +333,11 @@ class HaloChlorinatorAPI:
 
             while client.is_connected:
                 if (asyncio.get_event_loop().time() - start_time) > timeout:
-                    _LOGGER.debug("Timeout reached, device did not disconnect in the expected time")
+                    _LOGGER.debug(
+                        "Timeout reached, device did not disconnect in the expected time"
+                    )
                     break
-                await asyncio.sleep(0.1)  # Short sleep to yield control and prevent a busy wait
-
-
-
+                await asyncio.sleep(0.1)  # Short sleep to yield control
 
             # await client.write_gatt_char(
             #     UUID_RX_CHARACTERISTIC,
@@ -329,7 +351,7 @@ class HaloChlorinatorAPI:
             # await client.stop_notify(UUID_TX_CHARACTERISTIC)
             # _LOGGER.debug("Stop Notification and finish")
             # await asyncio.sleep(1)
-            
+
             _LOGGER.debug("halo_ble_client finished: %s", self._result)
             self._connected = False
             return self._result
