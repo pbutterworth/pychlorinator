@@ -143,15 +143,17 @@ class LightAction:
     def __init__(
         self,
         action: LightAppActions = LightAppActions.NoAction,
+        lighting_zone: int = 0,  #hard coded zone 1 for now
         header_bytes: bytes = b"\x03\xF5\x01",  # 501
     ) -> None:
         self.action = action
+        self.lighting_zone = lighting_zone.to_bytes(1, byteorder='little')  # Convert int to byte
         self.header_bytes = header_bytes
 
     def __bytes__(self):
-        fmt = "=3s B 16x"
-        _LOGGER.info("Selected Light Action is %s", self.action)
-        return struct.pack(fmt, self.header_bytes, self.action)
+        fmt = "=3s B B 15x"
+        _LOGGER.info("Selected Light Action is %s, zone %i", self.action, int.from_bytes(self.lighting_zone, byteorder='little'))
+        return struct.pack(fmt, self.header_bytes, self.action, self.lighting_zone[0])
 
 
 class ScanResponse:
