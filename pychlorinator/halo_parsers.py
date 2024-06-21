@@ -381,6 +381,7 @@ class StateCharacteristic3:
         self.ph_control_status = self.SubText2  # remap
         self.SubText3 = self.SubText3Values(self.SubText3TimerInfo)
         self.SubText4 = self.SubText4Values(self.SubText4ErrorInfo)
+        self.error_status = self.SubText4  # remap
 
     # @property
     # def flags_values(self):
@@ -495,7 +496,7 @@ class StateCharacteristic3:
             return self.name
 
     class SubText4Values(IntEnum):
-        NoneValue = 0
+        NoError = 0
         IOExpander = 1
         EEPROM = 2
         RTC = 3  # EEPROM | IOExpander
