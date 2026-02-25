@@ -3,7 +3,6 @@
 import logging
 from typing import Any
 
-from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 from Crypto.Cipher import AES
@@ -91,7 +90,15 @@ class ChlorinatorAPI:
 
     async def async_write_action(self, action: ChlorinatorActions):
         """Connect to the Chlorinator and write an action command to it."""
-        async with BleakClient(self._ble_device, timeout=10) as client:
+
+        client = await establish_connection(
+            BleakClientWithServiceCache,  # Use BleakClientWithServiceCache for service caching
+            self._ble_device,
+            self._ble_device.name or "Unknown Device",
+            max_attempts=4,
+        )
+
+        try:
             self._session_key = await client.read_gatt_char(UUID_SLAVE_SESSION_KEY)
             _LOGGER.debug("Got session key: %s", self._session_key.hex())
 
@@ -114,6 +121,8 @@ class ChlorinatorAPI:
             data = encrypt_characteristic(data, self._session_key)
             _LOGGER.debug("Encrypted data to write: %s", data.hex())
             await client.write_gatt_char(UUID_CHLORINATOR_APP_ACTION, data)
+        finally:
+            await client.disconnect()
 
     async def async_gatherdata(self) -> dict[str, Any]:
         """Connect to the Chlorinator to get data."""
